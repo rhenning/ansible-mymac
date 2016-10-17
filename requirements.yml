@@ -1,0 +1,6 @@
+# Fork of https://github.com/geerlingguy/ansible-role-homebrew
+# waiting to be merged that works around a non-empty /usr/local.
+# We can switch to the official repo after merge.
+- src: https://github.com/andrewkboyd/ansible-role-homebrew.git
+  version: f4d6706ec742f64e70f0aa2032791288ebefd1f5
+  name: homebrew

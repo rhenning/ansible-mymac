@@ -1,0 +1,4 @@
+all: config
+
+config: config.d/*.conf
+	cat $^ > $@

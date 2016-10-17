@@ -1,0 +1,164 @@
+---
+- hosts: all
+  vars:
+    homebrew_install_path: /usr/local
+    homebrew_brew_bin_path: "{{ homebrew_install_path }}/bin"
+    homebrew_taps:
+      - homebrew/versions
+      - caskroom/cask
+    homebrew_installed_packages:
+      - ack
+      - awscli
+      - golang
+      - jq
+      - nmap
+      - python
+      - socat
+      - tcptraceroute
+    homebrew_cask_apps:
+      - 1password
+      - docker
+      - java
+      - flame
+      - garmin-express
+      - google-chrome
+      - gpgtools
+      - spotify
+      - torbrowser
+      - virtualbox
+      - vagrant
+      - visual-studio-code
+    pip_packages:
+      - virtualenv
+      - ansible
+      - molecule
+  pre_tasks:
+    - name: "Recursively change ownership of {{ homebrew_install_path }} to {{ ansible_env.USER }}:admin"
+      file:
+        dest: "{{ homebrew_install_path }}"
+        owner: "{{ ansible_env.USER }}"
+        group: admin
+        recurse: yes
+      become: true
+      become_user: root
+  roles:
+    - role: homebrew
+  tasks:
+    - name: "Create SSH config dir {{ ansible_env.HOME }}/.ssh/config.d"
+      file:
+        path: "{{ ansible_env.HOME }}/.ssh/config.d"
+        state: directory
+        mode: 0755
+    - name: Create SSH config.d fragments
+      template:
+        src: "{{ item }}"
+        dest: "{{ ansible_env.HOME }}/.ssh/config.d/{{ item | basename | regex_replace('\\.j2', '') }}"
+      with_fileglob: ../templates/ssh/config.d/*.conf.j2
+    - name: Create SSH Makefile
+      template:
+        src: templates/ssh/Makefile.j2
+        dest: "{{ ansible_env.HOME }}/.ssh/Makefile"
+    - name: Build SSH config
+      make:
+        chdir: "{{ ansible_env.HOME }}/.ssh"
+    - name: Install pip packages
+      pip:
+        name: "{{ item }}"
+        executable: "{{ homebrew_brew_bin_path }}/pip"
+      with_items: "{{ pip_packages }}"
+    - name: Install Solarized color scheme
+      git:
+        repo: https://github.com/altercation/solarized.git
+        dest: "{{ ansible_env.HOME }}/Library/Frameworks/solarized"
+    - name: Load Solarized theme into Terminal
+      shell:
+        open -a Terminal
+        {{ ansible_env.HOME }}/Library/Frameworks/solarized/osx-terminal.app-colors-solarized/xterm-256color/Solarized\ Dark\ xterm-256color.terminal
+    - name: Wait for Terminal to load theme
+      pause:
+        seconds: 3
+    - name: Set Solarized as default Terminal theme
+      osx_defaults:
+        domain: com.apple.Terminal
+        key: Default Window Settings
+        value: Solarized Dark xterm-256color
+        type: string
+    - name: Set Solarized as startup Terminal theme
+      osx_defaults:
+        domain: com.apple.Terminal
+        key: Startup Window Settings
+        value: Solarized Dark xterm-256color
+        type: string
+    - name: Check for OS updates daily
+      osx_defaults:
+        domain: com.apple.SoftwareUpdate
+        key: ScheduleFrequency
+        value: 1
+        type: int
+    - name: Get keyboard ID
+      shell: ioreg -n IOHIDKeyboard -r | grep -e VendorID\" -e ProductID | tr -d \"\|[:blank:] | cut -d\= -f2 | tr '\n' -
+      register: keyboard_id
+    - name: "Map CAPS LOCK key to CTRL"
+      shell:
+        defaults -currentHost write
+        -g com.apple.keyboard.modifiermapping.{{ keyboard_id.stdout }}0
+        -array-add '<dict><key>HIDKeyboardModifierMappingDst</key><integer>2</integer><key>HIDKeyboardModifierMappingSrc</key><integer>0</integer></dict>'
+    - name: TextEdit uses plain text by default
+      osx_defaults:
+        domain: com.apple.TextEdit
+        key: RichText
+        value: 0
+        type: int
+    - name: Disable smart quotes
+      osx_defaults:
+        key: NSAutomaticQuoteSubstitutionEnabled
+        value: false
+        type: bool
+    - name: Disable smart dashes
+      osx_defaults:
+        key: NSAutomaticDashSubstitutionEnabled
+        value: false
+        type: bool
+    - name: Disable auto-correct
+      osx_defaults:
+        key: NSAutomaticSpellingCorrectionEnabled
+        value: false
+        type: bool
+    - name: Screensave after 5m idle (does not work)
+      osx_defaults:
+        domain: com.apple.screensaver
+        key: idleTime
+        value: 300
+        type: int
+    - name: Require password to exit screensaver
+      osx_defaults:
+        domain: com.apple.screensaver
+        key: askForPassword
+        value: 1
+        type: int
+    - name: Set screensaver password delay
+      osx_defaults:
+        domain: com.apple.screensaver
+        key: askForPasswordDelay
+        value: 2.0
+        type: float
+    - name: Auto-hide the dock
+      osx_defaults:
+        domain: com.apple.dock
+        key: autohide
+        value: true
+        type: bool
+    - name: Screensave on upper-left hot corner 1
+      osx_defaults:
+        domain: com.apple.dock
+        key: wvous-tl-corner
+        value: 5
+        type: int
+    - name: Screensave on upper-left hot corner 2
+      osx_defaults:
+        domain: com.apple.dock
+        key: wvous-tl-modifier
+        value: 0
+        type: int
+    - name: Show the ~/Library folder
+      shell: chflags nohidden ~/Library
