@@ -1,6 +1,10 @@
 ---
 - hosts: all
   vars:
+    git:
+      name: Richard Henning
+      email: richardphenning@gmail.com
+      editor: code --wait
     homebrew_install_path: /usr/local
     homebrew_brew_bin_path: "{{ homebrew_install_path }}/bin"
     homebrew_taps:
@@ -148,17 +152,28 @@
         key: autohide
         value: true
         type: bool
-    - name: Screensave on upper-left hot corner 1
+    - name: Screensave on upper-left hot corner
       osx_defaults:
         domain: com.apple.dock
-        key: wvous-tl-corner
-        value: 5
+        key: "{{ item.key }}"
+        value: "{{ item.value }}"
         type: int
-    - name: Screensave on upper-left hot corner 2
-      osx_defaults:
-        domain: com.apple.dock
-        key: wvous-tl-modifier
-        value: 0
-        type: int
+      with_items:
+        - key: wvous-tl-corner
+          value: 5
+        - key: wvous-tl-modifier
+          value: 0
     - name: Show the ~/Library folder
       shell: chflags nohidden ~/Library
+    - name: Configure git
+      git_config:
+        name: user.name
+        value: "{{ git.name }}"
+        scope: global
+      with_items:
+        - key: user.name
+          value: "{{ git.name }}"
+        - key: user.email
+          value: "{{ git.email }}"
+        - key: core.editor
+          value: "{{ git.editor }}"
