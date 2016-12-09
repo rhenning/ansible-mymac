@@ -24,6 +24,7 @@
       - docker
       - java
       - flame
+      - flux
       - garmin-express
       - google-chrome
       - gpgtools
